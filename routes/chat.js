@@ -37,7 +37,9 @@ router.get("/thread/:threadId", async(req, res)=>{
     try{
         const threads = await Thread.findOne({threadId});
         if(!threads){
-           res.status(404).json({error: "Thread not found"});
+           return res.status(404).json({
+            error: "Thread not found"
+          });
         }
         // res.json(threads.message);
         res.send(threads.messages);
@@ -67,6 +69,7 @@ router.delete("/thread/:threadId", async(req, res)=>{
 
 //post route
 router.post("/chat", async(req, res)=>{
+    console.log("chat route hit");
     const {threadId, message} = req.body;
 
     if(!threadId || !message){
@@ -86,7 +89,11 @@ router.post("/chat", async(req, res)=>{
            thread.messages.push({role:"user", content:message});
         }
 
-        const assistantReply = await getOpenAIAPIResponse(message);
+
+        console.log("THREAD MESSAGES:");
+        console.log(JSON.stringify(thread.messages, null, 2));
+
+        const assistantReply = await getOpenAIAPIResponse(thread.messages);
         thread.messages.push({role:"assistant", content:assistantReply});
         thread.updatedAt= new Date();
 
