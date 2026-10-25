@@ -19,7 +19,7 @@ const getOpenAIAPIResponse = async (messages) =>{
     };
 
     try{
-       console.log("MESSAGES SENT TO OPENAI");
+    //    console.log("MESSAGES SENT TO OPENAI");
        console.log(JSON.stringify(messages, null, 2));
        const response = await fetch("https://api.openai.com/v1/chat/completions", options);
        const data = await response.json();
