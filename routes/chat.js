@@ -2,6 +2,7 @@ import express from "express";
 import Thread from "../models/Thread.js";
 import getOpenAIAPIResponse from "../utils/openai.js";
 import authMiddleware from "../middleware/authMiddleware.js";
+import optionalAuthMiddleware from "../middleware/optionalAuthMiddleware.js";
 
 const router = express.Router();
 
@@ -79,7 +80,7 @@ router.delete("/thread/:threadId", authMiddleware, async(req, res)=>{
 });
 
 //post route
-router.post("/chat", authMiddleware, async(req, res)=>{
+router.post("/chat", optionalAuthMiddleware, async(req, res)=>{
     const {threadId, message} = req.body;
     // console.log("Authenticated user ID:", req.userId);
 
@@ -88,6 +89,18 @@ router.post("/chat", authMiddleware, async(req, res)=>{
     }
 
     try{
+        // Guest: generate a reply without saving a thread
+        if (!req.userId) {
+            const messages = [
+                { role: "user", content: message }
+            ];
+
+            const assistantReply = await getOpenAIAPIResponse(messages);
+
+            return res.json({ reply: assistantReply });
+        }
+
+        // Logged-in user: continue with your existing database logic
         let thread = await Thread.findOne({
             threadId,
             userId: req.userId
