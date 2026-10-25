@@ -23,6 +23,7 @@ import "dotenv/config";
 import cors from "cors";
 import mongoose from "mongoose";
 import chatRoutes from "./routes/chat.js";
+import authRoutes from "./routes/auth.js";
 
 const app = express();
 const PORT = process.env.PORT || 8080;
@@ -30,8 +31,13 @@ const PORT = process.env.PORT || 8080;
 
 app.use(express.json());
 app.use(cors());
+app.use((req, res, next) => {
+    // console.log("Incoming request:", req.method, req.url);
+    next();
+});
 
 app.use("/api", chatRoutes);
+app.use("/api/authRoutes", authRoutes);
 
 const connectDB = async () => {
   try {

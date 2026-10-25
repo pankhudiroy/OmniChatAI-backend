@@ -1,6 +1,7 @@
 import express from "express";
 import Thread from "../models/Thread.js";
 import getOpenAIAPIResponse from "../utils/openai.js";
+import authMiddleware from "../middleware/authMiddleware.js";
 
 const router = express.Router();
 
@@ -21,9 +22,13 @@ router.post("/test", async(req,res) =>{
 
 
 //get request
-router.get("/thread", async(req, res)=>{
+router.get("/thread", authMiddleware, async(req, res)=>{
     try{
-        const threads = await Thread.find({}).sort({updatedAt : -1});
+        const threads = await Thread.find({
+            userId: req.userId
+        }).sort({updatedAt: -1});
+        // console.log("Authenticated user ID:", req.userId);
+        // console.log("Threads found:", threads.length);
         res.send(threads);
     }catch(err){
         console.log(err);
@@ -31,11 +36,14 @@ router.get("/thread", async(req, res)=>{
     }
 });
 
-router.get("/thread/:threadId", async(req, res)=>{
+router.get("/thread/:threadId", authMiddleware, async(req, res)=>{
     const {threadId} = req.params;
 
     try{
-        const threads = await Thread.findOne({threadId});
+        const threads = await Thread.findOne({
+            threadId,
+            userId: req.userId
+        });
         if(!threads){
            return res.status(404).json({
             error: "Thread not found"
@@ -50,14 +58,17 @@ router.get("/thread/:threadId", async(req, res)=>{
 });
 
 //delete route
-router.delete("/thread/:threadId", async(req, res)=>{
+router.delete("/thread/:threadId", authMiddleware, async(req, res)=>{
     const {threadId} = req.params;
 
     try{
-        const deletedThread = await Thread.findOneAndDelete({threadId});
+        const deletedThread = await Thread.findOneAndDelete({
+            threadId,
+            userId: req.userId
+        });
 
         if(!deletedThread){
-            res.status(404).json({error: "Thread not found"});
+            return res.status(404).json({error: "Thread not found"});
         }
 
         res.status(200).json({success: "Thread deleted successfully"});
@@ -68,21 +79,33 @@ router.delete("/thread/:threadId", async(req, res)=>{
 });
 
 //post route
-router.post("/chat", async(req, res)=>{
-    console.log("chat route hit");
+router.post("/chat", authMiddleware, async(req, res)=>{
     const {threadId, message} = req.body;
+    // console.log("Authenticated user ID:", req.userId);
 
     if(!threadId || !message){
-        res.status(400).json({error:"Required fields are missing"});
+        return res.status(400).json({error:"Required fields are missing"});
     }
 
     try{
-        let thread = await Thread.findOne({threadId});
+        let thread = await Thread.findOne({
+            threadId,
+            userId: req.userId
+        });
+
+        if (!thread) {
+            const existingThread = await Thread.findOne({ threadId });
+
+            if (existingThread) {
+                return res.status(403).json({ error: "Access denied" });
+            }
+        }
 
         if(!thread){
             thread = new Thread ({
                 threadId,
                 title: message,
+                userId: req.userId,
                 messages: [{role:"user", content:message}],
             });
         }else{
@@ -90,13 +113,14 @@ router.post("/chat", async(req, res)=>{
         }
 
 
-        console.log("THREAD MESSAGES:");
-        console.log(JSON.stringify(thread.messages, null, 2));
+        // console.log("THREAD MESSAGES:");
+        // console.log(JSON.stringify(thread.messages, null, 2));
 
         const assistantReply = await getOpenAIAPIResponse(thread.messages);
         thread.messages.push({role:"assistant", content:assistantReply});
         thread.updatedAt= new Date();
 
+        // console.log("Thread owner ID:", thread.userId);
         await thread.save();
         res.json({reply: assistantReply});
 
@@ -109,13 +133,13 @@ router.post("/chat", async(req, res)=>{
 //put request (for updation)
 
 // route.js
-router.put("/thread/:threadId", async (req, res) => {
-  const { threadId } = req.params;
+router.put("/thread/:threadId", authMiddleware, async (req, res) => {
+  const { threadId} = req.params;
   const { title } = req.body;
 
   try {
     const updatedThread = await Thread.findOneAndUpdate(
-      { threadId },
+      { threadId, userId: req.userId },
       { title },
     );
 
