@@ -80,7 +80,7 @@ router.delete("/thread/:threadId", authMiddleware, async(req, res)=>{
 });
 
 //post route
-router.post("/chat", optionalAuthMiddleware, async(req, res)=>{
+router.post("/chat", authMiddleware, async(req, res)=>{
     const {threadId, message} = req.body;
     // console.log("Authenticated user ID:", req.userId);
 
